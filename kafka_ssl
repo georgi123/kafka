@@ -1,0 +1,38 @@
+#!/bin/bash
+#Step 1
+keytool -keystore kafka.server.keystore.jks -alias localhost -validity 365 -genkey
+#Step 2
+openssl req -new -x509 -keyout ca-key -out ca-cert -days 365
+keytool -keystore kafka.server.truststore.jks -alias CARoot -import -file ca-cert
+keytool -keystore kafka.client.truststore.jks -alias CARoot -import -file ca-cert
+#Step 3
+keytool -keystore kafka.server.keystore.jks -alias localhost -certreq -file cert-file
+openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days 365 -CAcreateserial -passin pass:test1234
+keytool -keystore kafka.server.keystore.jks -alias CARoot -import -file ca-cert
+keytool -keystore kafka.server.keystore.jks -alias localhost -import -file cert-signed
+
+ssl.keystore.location=/app/kafka/config/server.keystore.jks 
+ssl.keystore.password=12345678 
+ssl.key.password=12345678 
+ssl.truststore.location=/app/kafka/config/server.truststore.jks 
+ssl.truststore.password=12345678 
+security.inter.broker.protocol=SSL 
+ssl.secure.random.implementation=SHA1PRNG
+
+
+
+keytool -keystore server.truststore.jks  -alias CARoot -import  -file osvlipsapp2t-ca.crt
+keytool -keystore server.keystore.jks  -alias osvlipsapp1t -validity 720 -genkey -keyalg RSA -ext SAN=DNS:osvlipsapp1t.tst.srv
+keytool -keystore kafka01.keystore.jks -alias osvlipsapp1t -import -file osvlipsapp1t-full.crt
+keytool -genkey -keyalg RSA -keystore server.keystore.jks -validity 720 -storepass borica123 -keypass borica123 -dname "CN=osvlipsapp1t.tst.srv" -storetype pkcs12
+keytool -keystore server.keystore.jks -alias CARoot -import -file osvlipsapp2t.crt -storepass borica123 -keypass borica123 -noprompt
+
+
+keytool -keystore server.truststore.jks  -alias CARoot -import  -file rsvlipsapp1t-ca.crt
+$ openssl pkcs12 -export -in rsvlipsapp1t.crt -inkey rsvlipsapp1t.key -name rsvlipsapp1t.tst.srv > server.p12
+$ keytool -importkeystore -srckeystore server.p12 -destkeystore server.keystore.jks -srcstoretype pkcs12 -alias rsvlipsapp1t.tst.srv
+
+./kafka-topics.sh --create --topic ssl_test --bootstrap-server osvlipsapp1t:9091,osvlipsapp2t:9091,osvlipsapp3t:9091
+./kafka-console-producer.sh --broker-list osvlipsapp1t:9091 --topic test --producer.config config/client.properties
+
+keytool -list -v -keystore server.keystore.jks -storepass 123456
