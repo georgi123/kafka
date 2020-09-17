@@ -1,0 +1,18 @@
+
+#!/bin/bash
+PASSWORD=123456
+VALIDITY=730
+keytool -keystore server.keystore.jks -alias osvlipsapp3t -validity $VALIDITY -genkey
+openssl req -new -x509 -keyout ca-key -out ca-cert -days $VALIDITY
+keytool -keystore server.truststore.jks -alias CARoot -import -file ca-cert
+keytool -keystore client.truststore.jks -alias CARoot -import -file ca-cert
+keytool -keystore server.keystore.jks -alias osvlipsapp3t -certreq -file cert-file
+openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days $VALIDITY -CAcreateserial -passin pass:$PASSWORD
+keytool -keystore server.keystore.jks -alias CARoot -import -file ca-cert
+keytool -keystore server.keystore.jks -alias osvlipsapp3t -import -file cert-signed
+keytool -keystore client.keystore.jks -alias osvlipsapp3t -validity $VALIDITY -genkey
+keytool -keystore client.keystore.jks -alias osvlipsapp3t -certreq -file cert-file
+openssl x509 -req -CA ca-cert -CAkey ca-key -in cert-file -out cert-signed -days $VALIDITY -CAcreateserial -passin pass:$PASSWORD
+keytool -keystore client.keystore.jks -alias CARoot -import -file ca-cert
+keytool -keystore client.keystore.jks -alias osvlipsapp3t -import -file cert-signed
+
